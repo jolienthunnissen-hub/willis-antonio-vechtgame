@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vechtgame",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8080", "--directory", "/Users/jolien.thunnissen/hackathon/willis-antonio-vechtgame"],
+      "port": 8080
+    }
+  ]
+}

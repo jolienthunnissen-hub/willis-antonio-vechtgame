@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Willis & Antonio's Vechtgame</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+    </div>
+
+    <!-- Core systems -->
+    <script src="js/systems/input.js"></script>
+    <script src="js/systems/physics.js"></script>
+    <script src="js/systems/combat.js"></script>
+    <script src="js/systems/powerups.js"></script>
+
+    <!-- Characters -->
+    <script src="js/characters/base.js"></script>
+    <script src="js/characters/slang.js"></script>
+    <script src="js/characters/donkieKonk.js"></script>
+
+    <!-- Scenes -->
+    <script src="js/scenes/menu.js"></script>
+    <script src="js/scenes/characterSelect.js"></script>
+    <script src="js/scenes/houseSelect.js"></script>
+    <script src="js/scenes/fight.js"></script>
+    <script src="js/scenes/victory.js"></script>
+
+    <!-- Main game loop -->
+    <script src="js/main.js"></script>
+</body>
+</html>
