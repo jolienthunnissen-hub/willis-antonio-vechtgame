@@ -38,6 +38,11 @@ const VictoryScene = {
         // Check for restart
         const menu = InputSystem.getMenuInput();
         if (this.timer > 60 && (menu.p1.confirm || menu.p2.confirm)) {
+            if (Game.mode !== 'local') {
+                NetworkSystem.reset();
+                Game.mode = 'local';
+                return 'menu';
+            }
             return 'characterSelect';
         }
 

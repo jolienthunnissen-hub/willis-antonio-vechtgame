@@ -1,17 +1,57 @@
 // Title screen / main menu
 const MenuScene = {
     timer: 0,
+    statusText: '',
+    connecting: false,
 
     init() {
         this.timer = 0;
+        this.statusText = '';
+        this.connecting = false;
+
+        NetworkSystem.onConnected = () => {
+            if (Game.mode === 'online-host') {
+                this.statusText = 'Speler verbonden! Start online selectie...';
+                setTimeout(() => {
+                    Game.resetMatchConfig();
+                    NetworkSystem.send('start-online-flow');
+                    Game.switchScene('characterSelect');
+                }, 350);
+            } else if (Game.mode === 'online-client') {
+                this.statusText = 'Verbonden! Wachten op host...';
+            }
+        };
+
+        NetworkSystem.onDisconnected = () => {
+            this.connecting = false;
+            this.statusText = 'Verbinding verbroken. Druk op H of J om opnieuw te proberen.';
+        };
+
+        NetworkSystem.onMessage = (message) => {
+            if (message.type === 'start-online-flow' && Game.mode === 'online-client') {
+                Game.resetMatchConfig();
+                Game.switchScene('characterSelect');
+            }
+        };
     },
 
     update() {
         this.timer++;
         const menu = InputSystem.getMenuInput();
-        if (menu.p1.confirm || menu.p2.confirm) {
+        if (!this.connecting && (menu.p1.confirm || menu.p2.confirm)) {
+            Game.mode = 'local';
+            NetworkSystem.reset();
             return 'characterSelect';
         }
+
+        if (!this.connecting && (InputSystem.wasJustPressed('h') || InputSystem.wasJustPressed('H'))) {
+            this.startHost();
+        }
+
+        if (!this.connecting && (InputSystem.wasJustPressed('j') || InputSystem.wasJustPressed('J'))) {
+            this.startJoin();
+        }
+
         return null;
     },
 
@@ -71,7 +111,47 @@ const MenuScene = {
         if (Math.floor(this.timer / 30) % 2 === 0) {
             ctx.fillStyle = '#2c3e50';
             ctx.font = '22px Arial';
-            ctx.fillText('Druk op SPATIE of ENTER om te beginnen!', 400, 460);
+            ctx.fillText('SPATIE/ENTER: lokaal  |  H: host  |  J: join online', 400, 450);
+        }
+
+        if (this.statusText) {
+            ctx.fillStyle = '#111';
+            ctx.font = '18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(this.statusText, 400, 480);
+        }
+    },
+
+    async startHost() {
+        this.connecting = true;
+        this.statusText = 'Host setup... wacht op speler 2';
+        Game.mode = 'online-host';
+        Game.resetMatchConfig();
+
+        try {
+            await NetworkSystem.host();
+        } catch (error) {
+            this.statusText = `Host fout: ${error.message}`;
+            this.connecting = false;
+            Game.mode = 'local';
+            NetworkSystem.reset();
+        }
+    },
+
+    async startJoin() {
+        this.connecting = true;
+        this.statusText = 'Join setup... verbind met host';
+        Game.mode = 'online-client';
+        Game.resetMatchConfig();
+
+        try {
+            await NetworkSystem.join();
+            this.statusText = 'ANSWER verstuurd. Wacht op verbinding...';
+        } catch (error) {
+            this.statusText = `Join fout: ${error.message}`;
+            this.connecting = false;
+            Game.mode = 'local';
+            NetworkSystem.reset();
         }
     },
 

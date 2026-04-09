@@ -9,6 +9,8 @@ const FightScene = {
     hitEffects: [],
     shakeTimer: 0,
     shakeIntensity: 0,
+    remoteInput: { left: false, right: false, jump: false, attack: false },
+    lastRemoteSnapshot: null,
 
     init() {
         // Create characters based on selections
@@ -26,6 +28,32 @@ const FightScene = {
         this.winner = null;
         this.hitEffects = [];
         this.shakeTimer = 0;
+        this.shakeIntensity = 0;
+        this.remoteInput = { left: false, right: false, jump: false, attack: false };
+        this.lastRemoteSnapshot = null;
+
+        if (Game.mode === 'online-host') {
+            NetworkSystem.onMessage = (message) => {
+                if (message.type === 'client-input') {
+                    this.remoteInput = { ...this.remoteInput, ...(message.payload || {}) };
+                }
+            };
+            NetworkSystem.send('start-match', {
+                p1Character: Game.p1Character,
+                p2Character: Game.p2Character,
+                p1Surprise: Game.p1Surprise,
+                p2Surprise: Game.p2Surprise
+            });
+        }
+
+        if (Game.mode === 'online-client') {
+            NetworkSystem.onMessage = (message) => {
+                if (message.type === 'state') {
+                    this.lastRemoteSnapshot = message.payload;
+                    this.applySnapshot(this.lastRemoteSnapshot);
+                }
+            };
+        }
     },
 
     createCharacter(name, x, y) {
@@ -35,11 +63,25 @@ const FightScene = {
     },
 
     update() {
+        if (Game.mode === 'online-client') {
+            const p2Input = InputSystem.getPlayer2();
+            NetworkSystem.send('client-input', p2Input);
+
+            if (this.lastRemoteSnapshot) {
+                Game.winner = this.lastRemoteSnapshot.winner || null;
+                if (this.lastRemoteSnapshot.scene === 'victory') {
+                    return 'victory';
+                }
+            }
+            return null;
+        }
+
         if (this.phase === 'countdown') {
             this.countdownTimer--;
             if (this.countdownTimer <= 0) {
                 this.phase = 'fighting';
             }
+            if (Game.mode === 'online-host') this.broadcastSnapshot();
             return null;
         }
 
@@ -47,14 +89,18 @@ const FightScene = {
             this.koTimer++;
             if (this.koTimer > 120) {
                 Game.winner = this.winner;
+                if (Game.mode === 'online-host') {
+                    this.broadcastSnapshot('victory');
+                }
                 return 'victory';
             }
+            if (Game.mode === 'online-host') this.broadcastSnapshot();
             return null;
         }
 
         // Get input
         const p1Input = InputSystem.getPlayer1();
-        const p2Input = InputSystem.getPlayer2();
+        const p2Input = Game.mode === 'online-host' ? this.remoteInput : InputSystem.getPlayer2();
 
         // Handle input
         this.p1.handleInput(p1Input);
@@ -131,7 +177,81 @@ const FightScene = {
             this.winner = 1;
         }
 
+        if (Game.mode === 'online-host') this.broadcastSnapshot();
+
         return null;
+    },
+
+    broadcastSnapshot(scene = 'fight') {
+        NetworkSystem.send('state', {
+            scene,
+            phase: this.phase,
+            countdownTimer: this.countdownTimer,
+            koTimer: this.koTimer,
+            winner: this.winner,
+            shakeTimer: this.shakeTimer,
+            shakeIntensity: this.shakeIntensity,
+            p1: this.serializeFighter(this.p1),
+            p2: this.serializeFighter(this.p2),
+            hitEffects: this.hitEffects
+        });
+    },
+
+    serializeFighter(fighter) {
+        return {
+            x: fighter.x,
+            y: fighter.y,
+            vx: fighter.vx,
+            vy: fighter.vy,
+            onGround: fighter.onGround,
+            facing: fighter.facing,
+            lives: fighter.lives,
+            hitsTaken: fighter.hitsTaken,
+            isAttacking: fighter.isAttacking,
+            attackFrame: fighter.attackFrame,
+            attackCooldown: fighter.attackCooldown,
+            stunTimer: fighter.stunTimer,
+            shielded: fighter.shielded,
+            reversedControls: fighter.reversedControls,
+            animTimer: fighter.animTimer,
+            animFrame: fighter.animFrame,
+            state: fighter.state
+        };
+    },
+
+    applyFighterSnapshot(fighter, snapshot) {
+        if (!fighter || !snapshot) return;
+        fighter.x = snapshot.x;
+        fighter.y = snapshot.y;
+        fighter.vx = snapshot.vx;
+        fighter.vy = snapshot.vy;
+        fighter.onGround = snapshot.onGround;
+        fighter.facing = snapshot.facing;
+        fighter.lives = snapshot.lives;
+        fighter.hitsTaken = snapshot.hitsTaken;
+        fighter.isAttacking = snapshot.isAttacking;
+        fighter.attackFrame = snapshot.attackFrame;
+        fighter.attackCooldown = snapshot.attackCooldown;
+        fighter.stunTimer = snapshot.stunTimer;
+        fighter.shielded = snapshot.shielded;
+        fighter.reversedControls = snapshot.reversedControls;
+        fighter.animTimer = snapshot.animTimer;
+        fighter.animFrame = snapshot.animFrame;
+        fighter.state = snapshot.state;
+    },
+
+    applySnapshot(snapshot) {
+        if (!snapshot) return;
+        this.phase = snapshot.phase;
+        this.countdownTimer = snapshot.countdownTimer;
+        this.koTimer = snapshot.koTimer;
+        this.winner = snapshot.winner;
+        this.shakeTimer = snapshot.shakeTimer;
+        this.shakeIntensity = snapshot.shakeIntensity;
+        this.hitEffects = Array.isArray(snapshot.hitEffects) ? snapshot.hitEffects : [];
+
+        this.applyFighterSnapshot(this.p1, snapshot.p1);
+        this.applyFighterSnapshot(this.p2, snapshot.p2);
     },
 
     addHitEffect(x, y, big) {

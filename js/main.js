@@ -8,6 +8,7 @@ const Game = {
     p1Surprise: null,
     p2Surprise: null,
     winner: null,
+    mode: 'local', // local | online-host | online-client
 
     scenes: {
         menu: MenuScene,
@@ -22,6 +23,7 @@ const Game = {
         this.ctx = this.canvas.getContext('2d');
 
         InputSystem.init();
+        this.resetMatchConfig();
         this.switchScene('menu');
 
         this.loop();
@@ -49,6 +51,14 @@ const Game = {
         this.currentScene.draw(this.ctx);
 
         requestAnimationFrame(() => this.loop());
+    },
+
+    resetMatchConfig() {
+        this.p1Character = 'Slang';
+        this.p2Character = 'Donkie Konk';
+        this.p1Surprise = null;
+        this.p2Surprise = null;
+        this.winner = null;
     }
 };
 

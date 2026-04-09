@@ -9,6 +9,7 @@ const HouseSelectScene = {
     phase: 'choosing', // choosing, revealing, done
     revealTimer: 0,
     timer: 0,
+    remoteMenuInput: { left: false, right: false, confirm: false },
 
     init() {
         this.p1Selection = 0;
@@ -20,13 +21,48 @@ const HouseSelectScene = {
         this.phase = 'choosing';
         this.revealTimer = 0;
         this.timer = 0;
+        this.remoteMenuInput = { left: false, right: false, confirm: false };
+
+        if (Game.mode === 'online-host') {
+            NetworkSystem.onMessage = (message) => {
+                if (message.type === 'menu-input') {
+                    this.remoteMenuInput = { ...this.remoteMenuInput, ...(message.payload || {}) };
+                }
+            };
+        } else if (Game.mode === 'online-client') {
+            NetworkSystem.onMessage = (message) => {
+                if (message.type === 'house-select-state') {
+                    const payload = message.payload || {};
+                    this.p1Selection = payload.p1Selection ?? this.p1Selection;
+                    this.p2Selection = payload.p2Selection ?? this.p2Selection;
+                    this.p1Confirmed = !!payload.p1Confirmed;
+                    this.p2Confirmed = !!payload.p2Confirmed;
+                    this.p1Surprise = payload.p1Surprise ?? this.p1Surprise;
+                    this.p2Surprise = payload.p2Surprise ?? this.p2Surprise;
+                    this.phase = payload.phase || this.phase;
+                    this.revealTimer = payload.revealTimer ?? this.revealTimer;
+                } else if (message.type === 'go-fight') {
+                    const payload = message.payload || {};
+                    Game.p1Surprise = payload.p1Surprise || this.p1Surprise;
+                    Game.p2Surprise = payload.p2Surprise || this.p2Surprise;
+                    Game.switchScene('fight');
+                }
+            };
+        }
     },
 
     update() {
         this.timer++;
 
+        if (Game.mode === 'online-client') {
+            const menu = InputSystem.getMenuInput();
+            NetworkSystem.send('menu-input', menu.p2);
+            return null;
+        }
+
         if (this.phase === 'choosing') {
             const menu = InputSystem.getMenuInput();
+            const p2Menu = Game.mode === 'online-host' ? this.remoteMenuInput : menu.p2;
 
             if (!this.p1Confirmed) {
                 if (menu.p1.left) this.p1Selection = 0;
@@ -35,9 +71,9 @@ const HouseSelectScene = {
             }
 
             if (!this.p2Confirmed) {
-                if (menu.p2.left) this.p2Selection = 0;
-                if (menu.p2.right) this.p2Selection = 1;
-                if (menu.p2.confirm) this.p2Confirmed = true;
+                if (p2Menu.left) this.p2Selection = 0;
+                if (p2Menu.right) this.p2Selection = 1;
+                if (p2Menu.confirm) this.p2Confirmed = true;
             }
 
             if (this.p1Confirmed && this.p2Confirmed) {
@@ -55,7 +91,26 @@ const HouseSelectScene = {
             // Store surprises and proceed to fight
             Game.p1Surprise = this.p1Surprise;
             Game.p2Surprise = this.p2Surprise;
+            if (Game.mode === 'online-host') {
+                NetworkSystem.send('go-fight', {
+                    p1Surprise: this.p1Surprise,
+                    p2Surprise: this.p2Surprise
+                });
+            }
             return 'fight';
+        }
+
+        if (Game.mode === 'online-host') {
+            NetworkSystem.send('house-select-state', {
+                p1Selection: this.p1Selection,
+                p2Selection: this.p2Selection,
+                p1Confirmed: this.p1Confirmed,
+                p2Confirmed: this.p2Confirmed,
+                p1Surprise: this.p1Surprise,
+                p2Surprise: this.p2Surprise,
+                phase: this.phase,
+                revealTimer: this.revealTimer
+            });
         }
 
         return null;
@@ -86,6 +141,15 @@ const HouseSelectScene = {
         ctx.font = 'bold 32px Arial';
         ctx.textAlign = 'center';
         ctx.fillText('KIES EEN VERRASSINGSHUIS!', 400, 40);
+
+        if (Game.mode === 'online-host' || Game.mode === 'online-client') {
+            const roleText = Game.mode === 'online-host'
+                ? 'Online: Jij bent HOST (Speler 1)'
+                : 'Online: Jij bent JOIN (Speler 2)';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#f1c40f';
+            ctx.fillText(roleText, 400, 64);
+        }
 
         // Draw the two houses
         this.drawSelectableHouse(ctx, 120, 150, '#e74c3c', '#c0392b', 0);

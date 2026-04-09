@@ -6,6 +6,7 @@ const CharacterSelectScene = {
     p1Confirmed: false,
     p2Confirmed: false,
     timer: 0,
+    remoteMenuInput: { left: false, right: false, confirm: false },
 
     init() {
         this.p1Selection = 0;
@@ -13,11 +14,39 @@ const CharacterSelectScene = {
         this.p1Confirmed = false;
         this.p2Confirmed = false;
         this.timer = 0;
+        this.remoteMenuInput = { left: false, right: false, confirm: false };
+
+        if (Game.mode === 'online-host') {
+            NetworkSystem.onMessage = (message) => {
+                if (message.type === 'menu-input') {
+                    this.remoteMenuInput = { ...this.remoteMenuInput, ...(message.payload || {}) };
+                }
+            };
+        } else if (Game.mode === 'online-client') {
+            NetworkSystem.onMessage = (message) => {
+                if (message.type === 'character-select-state') {
+                    const payload = message.payload || {};
+                    this.p1Selection = payload.p1Selection ?? this.p1Selection;
+                    this.p2Selection = payload.p2Selection ?? this.p2Selection;
+                    this.p1Confirmed = !!payload.p1Confirmed;
+                    this.p2Confirmed = !!payload.p2Confirmed;
+                } else if (message.type === 'go-house-select') {
+                    Game.switchScene('houseSelect');
+                }
+            };
+        }
     },
 
     update() {
         this.timer++;
         const menu = InputSystem.getMenuInput();
+
+        if (Game.mode === 'online-client') {
+            NetworkSystem.send('menu-input', menu.p2);
+            return null;
+        }
+
+        const p2Menu = Game.mode === 'online-host' ? this.remoteMenuInput : menu.p2;
 
         if (!this.p1Confirmed) {
             if (menu.p1.left) this.p1Selection = (this.p1Selection + this.characters.length - 1) % this.characters.length;
@@ -26,14 +55,26 @@ const CharacterSelectScene = {
         }
 
         if (!this.p2Confirmed) {
-            if (menu.p2.left) this.p2Selection = (this.p2Selection + this.characters.length - 1) % this.characters.length;
-            if (menu.p2.right) this.p2Selection = (this.p2Selection + 1) % this.characters.length;
-            if (menu.p2.confirm) this.p2Confirmed = true;
+            if (p2Menu.left) this.p2Selection = (this.p2Selection + this.characters.length - 1) % this.characters.length;
+            if (p2Menu.right) this.p2Selection = (this.p2Selection + 1) % this.characters.length;
+            if (p2Menu.confirm) this.p2Confirmed = true;
+        }
+
+        if (Game.mode === 'online-host') {
+            NetworkSystem.send('character-select-state', {
+                p1Selection: this.p1Selection,
+                p2Selection: this.p2Selection,
+                p1Confirmed: this.p1Confirmed,
+                p2Confirmed: this.p2Confirmed
+            });
         }
 
         if (this.p1Confirmed && this.p2Confirmed) {
             Game.p1Character = this.characters[this.p1Selection];
             Game.p2Character = this.characters[this.p2Selection];
+            if (Game.mode === 'online-host') {
+                NetworkSystem.send('go-house-select');
+            }
             return 'houseSelect';
         }
 
@@ -48,6 +89,15 @@ const CharacterSelectScene = {
         ctx.font = 'bold 36px Arial';
         ctx.textAlign = 'center';
         ctx.fillText('KIES JE CHARACTER!', 400, 50);
+
+        if (Game.mode === 'online-host' || Game.mode === 'online-client') {
+            const roleText = Game.mode === 'online-host'
+                ? 'Online: Jij bent HOST (Speler 1)'
+                : 'Online: Jij bent JOIN (Speler 2)';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#f1c40f';
+            ctx.fillText(roleText, 400, 72);
+        }
 
         ctx.font = '20px Arial';
         ctx.fillStyle = '#3498db';
