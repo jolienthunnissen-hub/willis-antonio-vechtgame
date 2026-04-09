@@ -56,8 +56,10 @@ const CharacterSelectScene = {
         }
 
         if (isSingle) {
-            this.p2Selection = (this.p1Selection + 1) % this.characters.length;
-            this.p2Confirmed = true;
+            if (this.p1Confirmed && !this.p2Confirmed) {
+                this.p2Selection = (this.p1Selection + 1) % this.characters.length;
+                this.p2Confirmed = true;
+            }
         } else if (!this.p2Confirmed) {
             if (p2Menu.left) this.p2Selection = (this.p2Selection + this.characters.length - 1) % this.characters.length;
             if (p2Menu.right) this.p2Selection = (this.p2Selection + 1) % this.characters.length;

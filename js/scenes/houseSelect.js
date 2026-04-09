@@ -72,8 +72,10 @@ const HouseSelectScene = {
             }
 
             if (isSingle) {
-                this.p2Selection = Math.random() < 0.5 ? 0 : 1;
-                this.p2Confirmed = true;
+                if (this.p1Confirmed && !this.p2Confirmed) {
+                    this.p2Selection = Math.random() < 0.5 ? 0 : 1;
+                    this.p2Confirmed = true;
+                }
             } else if (!this.p2Confirmed) {
                 if (p2Menu.left) this.p2Selection = 0;
                 if (p2Menu.right) this.p2Selection = 1;
@@ -184,12 +186,12 @@ const HouseSelectScene = {
                 ctx.fillStyle = '#3498db';
                 ctx.fillText('P1: A/D om te kiezen, Spatie om te bevestigen', 250, 480);
             }
-            if (!this.p2Confirmed) {
-                ctx.fillStyle = '#e74c3c';
-                ctx.fillText('P2: ←/→ om te kiezen, Enter om te bevestigen', 550, 480);
-            } else if (isSingle) {
+            if (Game.mode === 'local' && Game.localMode === 'single') {
                 ctx.fillStyle = '#f39c12';
                 ctx.fillText('P2 (computer) kiest automatisch', 550, 480);
+            } else if (!this.p2Confirmed) {
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillText('P2: ←/→ om te kiezen, Enter om te bevestigen', 550, 480);
             }
         }
 

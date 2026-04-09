@@ -10,7 +10,7 @@ const Game = {
     winner: null,
     mode: 'local', // local | online-host | online-client
     localMode: 'versus', // versus | single
-    aiDifficulty: 'normal', // easy | normal | hard
+    aiDifficulty: 'easy', // easy | normal | hard
 
     scenes: {
         menu: MenuScene,
