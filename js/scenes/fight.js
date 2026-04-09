@@ -11,6 +11,8 @@ const FightScene = {
     shakeIntensity: 0,
     remoteInput: { left: false, right: false, jump: false, attack: false },
     lastRemoteSnapshot: null,
+    aiDecisionTimer: 0,
+    aiMoveDirection: 0,
 
     init() {
         // Create characters based on selections
@@ -31,6 +33,8 @@ const FightScene = {
         this.shakeIntensity = 0;
         this.remoteInput = { left: false, right: false, jump: false, attack: false };
         this.lastRemoteSnapshot = null;
+        this.aiDecisionTimer = 0;
+        this.aiMoveDirection = 0;
 
         if (Game.mode === 'online-host') {
             NetworkSystem.onMessage = (message) => {
@@ -100,7 +104,11 @@ const FightScene = {
 
         // Get input
         const p1Input = InputSystem.getPlayer1();
-        const p2Input = Game.mode === 'online-host' ? this.remoteInput : InputSystem.getPlayer2();
+        const p2Input = Game.mode === 'online-host'
+            ? this.remoteInput
+            : (Game.mode === 'local' && Game.localMode === 'single'
+                ? this.getSinglePlayerAIInput()
+                : InputSystem.getPlayer2());
 
         // Handle input
         this.p1.handleInput(p1Input);
@@ -180,6 +188,75 @@ const FightScene = {
         if (Game.mode === 'online-host') this.broadcastSnapshot();
 
         return null;
+    },
+
+    getSinglePlayerAIInput() {
+        const difficulty = Game.aiDifficulty || 'normal';
+        const settings = this.getAISettings(difficulty);
+        const dx = this.p1.x - this.p2.x;
+        const distance = Math.abs(dx);
+        const sameHeight = Math.abs(this.p1.y - this.p2.y) < 40;
+
+        if (this.aiDecisionTimer <= 0) {
+            this.aiDecisionTimer = settings.decisionMin + Math.floor(Math.random() * settings.decisionRange);
+            if (distance > 140) {
+                this.aiMoveDirection = dx > 0 ? 1 : -1;
+            } else if (distance < 60) {
+                this.aiMoveDirection = dx > 0 ? -1 : 1;
+            } else {
+                this.aiMoveDirection = Math.random() < settings.chaseChance ? (dx > 0 ? 1 : -1) : 0;
+            }
+        } else {
+            this.aiDecisionTimer--;
+        }
+
+        const input = {
+            left: this.aiMoveDirection < 0,
+            right: this.aiMoveDirection > 0,
+            jump: false,
+            attack: false
+        };
+
+        if (this.p2.onGround && sameHeight && distance > 70 && distance < 200 && Math.random() < settings.jumpChance) {
+            input.jump = true;
+        }
+
+        if (sameHeight && distance < this.p2.attackRange + settings.attackRangeBonus && this.p2.attackCooldown <= 0 && Math.random() < settings.attackChance) {
+            input.attack = true;
+        }
+
+        return input;
+    },
+
+    getAISettings(difficulty) {
+        if (difficulty === 'easy') {
+            return {
+                decisionMin: 28,
+                decisionRange: 24,
+                chaseChance: 0.62,
+                jumpChance: 0.018,
+                attackChance: 0.09,
+                attackRangeBonus: 10
+            };
+        }
+        if (difficulty === 'hard') {
+            return {
+                decisionMin: 12,
+                decisionRange: 10,
+                chaseChance: 0.9,
+                jumpChance: 0.05,
+                attackChance: 0.32,
+                attackRangeBonus: 28
+            };
+        }
+        return {
+            decisionMin: 18,
+            decisionRange: 16,
+            chaseChance: 0.75,
+            jumpChance: 0.03,
+            attackChance: 0.18,
+            attackRangeBonus: 20
+        };
     },
 
     broadcastSnapshot(scene = 'fight') {
@@ -459,7 +536,8 @@ const FightScene = {
         // Player 1 info (left)
         this.drawPlayerHUD(ctx, 10, 10, this.p1, Game.p1Character, '#3498db', 'Speler 1');
         // Player 2 info (right)
-        this.drawPlayerHUD(ctx, 490, 10, this.p2, Game.p2Character, '#e74c3c', 'Speler 2');
+        const p2Label = Game.mode === 'local' && Game.localMode === 'single' ? 'Computer' : 'Speler 2';
+        this.drawPlayerHUD(ctx, 490, 10, this.p2, Game.p2Character, '#e74c3c', p2Label);
 
         // Power-up indicators
         if (Game.p1Surprise) {

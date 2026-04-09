@@ -7,6 +7,14 @@ Een 1-tegen-1 fighting game in de browser! Kies je character, ga een verrassings
 1. Open `index.html` in je browser
 2. Of start een server: `python3 -m http.server 8080` en ga naar http://localhost:8080
 
+### Spelmodi
+
+- `1` in menu: **singleplayer** (tegen computer)
+- `Spatie` of `Enter` in menu: **2 spelers lokaal**
+- `H` in menu: **host online**
+- `J` in menu: **doe mee online**
+- `M` in menu: wissel **AI moeilijkheid** (Easy / Normal / Hard) voor singleplayer
+
 ## Besturing
 
 | Actie | Speler 1 | Speler 2 |

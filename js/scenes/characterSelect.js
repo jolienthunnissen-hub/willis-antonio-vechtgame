@@ -40,6 +40,7 @@ const CharacterSelectScene = {
     update() {
         this.timer++;
         const menu = InputSystem.getMenuInput();
+        const isSingle = Game.mode === 'local' && Game.localMode === 'single';
 
         if (Game.mode === 'online-client') {
             NetworkSystem.send('menu-input', menu.p2);
@@ -54,7 +55,10 @@ const CharacterSelectScene = {
             if (menu.p1.confirm) this.p1Confirmed = true;
         }
 
-        if (!this.p2Confirmed) {
+        if (isSingle) {
+            this.p2Selection = (this.p1Selection + 1) % this.characters.length;
+            this.p2Confirmed = true;
+        } else if (!this.p2Confirmed) {
             if (p2Menu.left) this.p2Selection = (this.p2Selection + this.characters.length - 1) % this.characters.length;
             if (p2Menu.right) this.p2Selection = (this.p2Selection + 1) % this.characters.length;
             if (p2Menu.confirm) this.p2Confirmed = true;
@@ -92,11 +96,16 @@ const CharacterSelectScene = {
 
         if (Game.mode === 'online-host' || Game.mode === 'online-client') {
             const roleText = Game.mode === 'online-host'
-                ? 'Online: Jij bent HOST (Speler 1)'
-                : 'Online: Jij bent JOIN (Speler 2)';
+                ? 'Online: Jij bent host (Speler 1)'
+                : 'Online: Jij bent deelnemer (Speler 2)';
             ctx.font = 'bold 16px Arial';
             ctx.fillStyle = '#f1c40f';
             ctx.fillText(roleText, 400, 72);
+        } else if (Game.localMode === 'single') {
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#f1c40f';
+            const diff = Game.aiDifficulty === 'hard' ? 'Moeilijk' : (Game.aiDifficulty === 'easy' ? 'Makkelijk' : 'Normaal');
+            ctx.fillText(`Singleplayer: jij bent Speler 1, Speler 2 is AI (${diff})`, 400, 72);
         }
 
         ctx.font = '20px Arial';
@@ -122,7 +131,12 @@ const CharacterSelectScene = {
             ctx.fillText('✓ KLAAR!', 200, 435);
         }
 
-        if (!this.p2Confirmed) {
+        if (Game.localMode === 'single') {
+            ctx.fillStyle = '#f39c12';
+            ctx.font = 'bold 22px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('COMPUTER', 600, 435);
+        } else if (!this.p2Confirmed) {
             ctx.fillStyle = '#e74c3c';
             ctx.font = '24px Arial';
             ctx.textAlign = 'center';

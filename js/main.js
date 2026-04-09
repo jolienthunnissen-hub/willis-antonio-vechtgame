@@ -9,6 +9,8 @@ const Game = {
     p2Surprise: null,
     winner: null,
     mode: 'local', // local | online-host | online-client
+    localMode: 'versus', // versus | single
+    aiDifficulty: 'normal', // easy | normal | hard
 
     scenes: {
         menu: MenuScene,
@@ -59,6 +61,8 @@ const Game = {
         this.p1Surprise = null;
         this.p2Surprise = null;
         this.winner = null;
+        this.localMode = 'versus';
+        this.aiDifficulty = 'normal';
     }
 };
 

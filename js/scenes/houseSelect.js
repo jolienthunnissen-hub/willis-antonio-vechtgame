@@ -53,6 +53,7 @@ const HouseSelectScene = {
 
     update() {
         this.timer++;
+        const isSingle = Game.mode === 'local' && Game.localMode === 'single';
 
         if (Game.mode === 'online-client') {
             const menu = InputSystem.getMenuInput();
@@ -70,7 +71,10 @@ const HouseSelectScene = {
                 if (menu.p1.confirm) this.p1Confirmed = true;
             }
 
-            if (!this.p2Confirmed) {
+            if (isSingle) {
+                this.p2Selection = Math.random() < 0.5 ? 0 : 1;
+                this.p2Confirmed = true;
+            } else if (!this.p2Confirmed) {
                 if (p2Menu.left) this.p2Selection = 0;
                 if (p2Menu.right) this.p2Selection = 1;
                 if (p2Menu.confirm) this.p2Confirmed = true;
@@ -144,11 +148,16 @@ const HouseSelectScene = {
 
         if (Game.mode === 'online-host' || Game.mode === 'online-client') {
             const roleText = Game.mode === 'online-host'
-                ? 'Online: Jij bent HOST (Speler 1)'
-                : 'Online: Jij bent JOIN (Speler 2)';
+                ? 'Online: Jij bent host (Speler 1)'
+                : 'Online: Jij bent deelnemer (Speler 2)';
             ctx.font = 'bold 16px Arial';
             ctx.fillStyle = '#f1c40f';
             ctx.fillText(roleText, 400, 64);
+        } else if (Game.localMode === 'single') {
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#f1c40f';
+            const diff = Game.aiDifficulty === 'hard' ? 'Moeilijk' : (Game.aiDifficulty === 'easy' ? 'Makkelijk' : 'Normaal');
+            ctx.fillText(`Singleplayer: Speler 2 is AI (${diff})`, 400, 64);
         }
 
         // Draw the two houses
@@ -178,6 +187,9 @@ const HouseSelectScene = {
             if (!this.p2Confirmed) {
                 ctx.fillStyle = '#e74c3c';
                 ctx.fillText('P2: ←/→ om te kiezen, Enter om te bevestigen', 550, 480);
+            } else if (isSingle) {
+                ctx.fillStyle = '#f39c12';
+                ctx.fillText('P2 (computer) kiest automatisch', 550, 480);
             }
         }
 

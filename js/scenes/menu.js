@@ -3,6 +3,7 @@ const MenuScene = {
     timer: 0,
     statusText: '',
     connecting: false,
+    difficulties: ['easy', 'normal', 'hard'],
 
     init() {
         this.timer = 0;
@@ -38,8 +39,21 @@ const MenuScene = {
     update() {
         this.timer++;
         const menu = InputSystem.getMenuInput();
+        if (!this.connecting && (InputSystem.wasJustPressed('m') || InputSystem.wasJustPressed('M'))) {
+            const idx = this.difficulties.indexOf(Game.aiDifficulty);
+            const nextIdx = (idx + 1) % this.difficulties.length;
+            Game.aiDifficulty = this.difficulties[nextIdx];
+            this.statusText = `AI moeilijkheid: ${this.getDifficultyLabel(Game.aiDifficulty)}`;
+        }
+        if (!this.connecting && InputSystem.wasJustPressed('1')) {
+            Game.mode = 'local';
+            Game.localMode = 'single';
+            NetworkSystem.reset();
+            return 'characterSelect';
+        }
         if (!this.connecting && (menu.p1.confirm || menu.p2.confirm)) {
             Game.mode = 'local';
+            Game.localMode = 'versus';
             NetworkSystem.reset();
             return 'characterSelect';
         }
@@ -110,8 +124,10 @@ const MenuScene = {
         // Start prompt
         if (Math.floor(this.timer / 30) % 2 === 0) {
             ctx.fillStyle = '#2c3e50';
-            ctx.font = '22px Arial';
-            ctx.fillText('SPATIE/ENTER: lokaal  |  H: host  |  J: join online', 400, 450);
+            ctx.font = '18px Arial';
+            ctx.fillText('1: singleplayer  |  Spatie/Enter: lokaal 2 spelers', 400, 438);
+            ctx.fillText(`M: AI moeilijkheid (${this.getDifficultyLabel(Game.aiDifficulty)})`, 400, 462);
+            ctx.fillText('H: host online  |  J: doe mee online', 400, 486);
         }
 
         if (this.statusText) {
@@ -124,14 +140,14 @@ const MenuScene = {
 
     async startHost() {
         this.connecting = true;
-        this.statusText = 'Host setup... wacht op speler 2';
+        this.statusText = 'Host instellen... wacht op speler 2';
         Game.mode = 'online-host';
         Game.resetMatchConfig();
 
         try {
             await NetworkSystem.host();
         } catch (error) {
-            this.statusText = `Host fout: ${error.message}`;
+            this.statusText = `Fout bij hosten: ${error.message}`;
             this.connecting = false;
             Game.mode = 'local';
             NetworkSystem.reset();
@@ -140,19 +156,25 @@ const MenuScene = {
 
     async startJoin() {
         this.connecting = true;
-        this.statusText = 'Join setup... verbind met host';
+        this.statusText = 'Verbinden... maak contact met host';
         Game.mode = 'online-client';
         Game.resetMatchConfig();
 
         try {
             await NetworkSystem.join();
-            this.statusText = 'ANSWER verstuurd. Wacht op verbinding...';
+            this.statusText = 'Antwoordcode verstuurd. Wacht op verbinding...';
         } catch (error) {
-            this.statusText = `Join fout: ${error.message}`;
+            this.statusText = `Fout bij verbinden: ${error.message}`;
             this.connecting = false;
             Game.mode = 'local';
             NetworkSystem.reset();
         }
+    },
+
+    getDifficultyLabel(value) {
+        if (value === 'easy') return 'Makkelijk';
+        if (value === 'hard') return 'Moeilijk';
+        return 'Normaal';
     },
 
     drawHouse(ctx, x, y, color, darkColor) {
