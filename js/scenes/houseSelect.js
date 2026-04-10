@@ -123,6 +123,7 @@ const HouseSelectScene = {
     },
 
     draw(ctx) {
+        const isSingle = Game.mode === 'local' && Game.localMode === 'single';
         // Street background
         const grad = ctx.createLinearGradient(0, 0, 0, 500);
         grad.addColorStop(0, '#87CEEB');
